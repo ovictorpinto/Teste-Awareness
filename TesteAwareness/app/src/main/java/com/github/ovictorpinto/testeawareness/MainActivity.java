@@ -10,10 +10,11 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.text.TextUtils;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.android.gms.awareness.Awareness;
 import com.google.android.gms.awareness.fence.AwarenessFence;
@@ -41,24 +42,30 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         
         mGoogleApiClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this).addApi(Awareness.API).build();
         mGoogleApiClient.connect();
-        
-        Intent intent = new Intent(FENCE_RECEIVER_ACTION);
-        myPendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
-        myFenceReceiver = new MyFenceReceiver();
-        registerReceiver(myFenceReceiver, new IntentFilter(FENCE_RECEIVER_ACTION));
     }
     
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        unregisterReceiver(myFenceReceiver);
+        if (myFenceReceiver != null) {
+            Log.i(TAG, "removendo receiver");
+            unregisterReceiver(myFenceReceiver);
+        }
     }
     
     private void criaFenda() {
         Log.d(TAG, "Criando fenda");
-        double lat = -20.319537;
-        double lon = -40.333316;
+        double lat = -20.3196291;
+        double lon = -40.3332869;
         AwarenessFence localtionFence = LocationFence.entering(lat, lon, 100);
+        
+        Intent intent = new Intent(FENCE_RECEIVER_ACTION);
+        intent.putExtra("id", 10);
+        intent.putExtra("ponto", "qualquerUm");
+        
+        myPendingIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
+        myFenceReceiver = new MyFenceReceiver();
+        registerReceiver(myFenceReceiver, new IntentFilter(FENCE_RECEIVER_ACTION));
         
         // Register the fence to receive callbacks.
         // The fence key uniquely identifies the fence.
@@ -88,8 +95,8 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     public void onConnected(@Nullable Bundle bundle) {
         Log.e(TAG, "Conectou googleApi");
         // Create a fence.
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_FINE_LOCATION);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSION_FINE_LOCATION);
         } else {
             criaFenda();
         }
@@ -107,23 +114,25 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         
         @Override
         public void onReceive(Context context, Intent intent) {
-            Log.e(TAG, "Fenda encontrada!!!!");
+            Log.i(TAG, "Fenda encontrada!!!!");
             FenceState fenceState = FenceState.extract(intent);
-            Log.e(TAG, fenceState.getFenceKey());
-            
-            if (TextUtils.equals(fenceState.getFenceKey(), FANCE_NAME)) {
-                switch (fenceState.getCurrentState()) {
-                    case FenceState.TRUE:
-                        Log.i(TAG, "Headphones are plugged in.");
-                        break;
-                    case FenceState.FALSE:
-                        Log.i(TAG, "Headphones are NOT plugged in.");
-                        break;
-                    case FenceState.UNKNOWN:
-                        Log.i(TAG, "The headphone fence is in an unknown state.");
-                        break;
-                }
+            switch(fenceState.getCurrentState()) {
+                case FenceState.TRUE:
+                    Log.i(TAG, "Entrando");
+                    Toast.makeText(context, "Entrando", Toast.LENGTH_SHORT).show();
+                    break;
+                case FenceState.FALSE:
+                    Log.i(TAG, "Saindo");
+                    break;
+                default:
+                    Log.i(TAG, "Sei lá");
             }
+            Log.e(TAG, String.valueOf(intent.getIntExtra("id", -1)));
+            String ponto = intent.getStringExtra("ponto");
+            if (ponto == null) {
+                ponto = "não tem";
+            }
+            Log.i(TAG, ponto);
         }
     }
 }
